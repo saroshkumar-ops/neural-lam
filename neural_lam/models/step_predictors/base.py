@@ -414,12 +414,12 @@ class StepPredictor(nn.Module, ABC):
     @classmethod
     def from_config(
         cls,
-        args: Namespace,
+        args: Namespace | dict[str, Any],
         config: Any,
         datastore: BaseDatastore,
     ) -> "StepPredictor":
         """
-        Instantiate a step predictor from CLI arguments, configuration,
+        Instantiate a step predictor from configuration mapping, CLI arguments,
         and datastore.
 
         Subclasses may override this method to customize how their constructor
@@ -427,8 +427,8 @@ class StepPredictor(nn.Module, ABC):
 
         Parameters
         ----------
-        args : argparse.Namespace
-            Parsed command-line arguments.
+        args : argparse.Namespace or dict
+            Configuration mapping or parsed command-line arguments.
         config : NeuralLAMConfig
             Root configuration for the training session.
         datastore : BaseDatastore
@@ -439,33 +439,36 @@ class StepPredictor(nn.Module, ABC):
         StepPredictor
             Instantiated step predictor.
         """
+        cfg: dict[str, Any] = (
+            args
+            if isinstance(args, dict)
+            else (vars(args) if hasattr(args, "__dict__") else {})
+        )
         kwargs: dict[str, Any] = dict(
             datastore=datastore,
-            graph_name=getattr(args, "graph", None),
-            hidden_dim=getattr(args, "hidden_dim", 64),
-            hidden_layers=getattr(args, "hidden_layers", 1),
-            processor_layers=getattr(args, "processor_layers", 2),
-            mesh_aggr=getattr(args, "mesh_aggr", "sum"),
-            num_past_forcing_steps=getattr(args, "num_past_forcing_steps", 1),
-            num_future_forcing_steps=getattr(
-                args, "num_future_forcing_steps", 1
-            ),
-            output_std=getattr(args, "output_std", False),
+            graph_name=cfg.get("graph"),
+            hidden_dim=cfg.get("hidden_dim", 64),
+            hidden_layers=cfg.get("hidden_layers", 1),
+            processor_layers=cfg.get("processor_layers", 2),
+            mesh_aggr=cfg.get("mesh_aggr", "sum"),
+            num_past_forcing_steps=cfg.get("num_past_forcing_steps", 1),
+            num_future_forcing_steps=cfg.get("num_future_forcing_steps", 1),
+            output_std=cfg.get("output_std", False),
             output_clamping_lower=config.training.output_clamping.lower,
             output_clamping_upper=config.training.output_clamping.upper,
-            g2m_gnn_type=getattr(args, "g2m_gnn_type", "InteractionNet"),
-            m2g_gnn_type=getattr(args, "m2g_gnn_type", "InteractionNet"),
+            g2m_gnn_type=cfg.get("g2m_gnn_type", "InteractionNet"),
+            m2g_gnn_type=cfg.get("m2g_gnn_type", "InteractionNet"),
         )
         # Handle hierarchical model kwargs if applicable
         # Local
         from .graph.hierarchical import BaseHiGraphModel
 
         if isinstance(cls, type) and issubclass(cls, BaseHiGraphModel):
-            kwargs["mesh_up_gnn_type"] = getattr(
-                args, "mesh_up_gnn_type", "InteractionNet"
+            kwargs["mesh_up_gnn_type"] = cfg.get(
+                "mesh_up_gnn_type", "InteractionNet"
             )
-            kwargs["mesh_down_gnn_type"] = getattr(
-                args, "mesh_down_gnn_type", "InteractionNet"
+            kwargs["mesh_down_gnn_type"] = cfg.get(
+                "mesh_down_gnn_type", "InteractionNet"
             )
 
         return cls(**kwargs)

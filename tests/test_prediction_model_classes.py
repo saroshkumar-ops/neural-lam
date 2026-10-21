@@ -521,6 +521,87 @@ def test_build_predictor_delegates_to_from_config():
     assert isinstance(inst, CustomPredictor)
 
 
+def test_step_predictor_from_config_with_dict_and_namespace():
+    """
+    StepPredictor.from_config accepts plain dict configs as well as Namespace.
+    """
+
+    class DummyPredictor(StepPredictor):
+        def __init__(self, **kwargs):
+            super().__init__(datastore=kwargs["datastore"])
+            self.kwargs = kwargs
+
+        def forward(self, prev_state, prev_prev_state, forcing):
+            return prev_state, None
+
+    datastore = DummyDatastore()
+    config = nlconfig.NeuralLAMConfig(
+        datastores={
+            "interior": nlconfig.DatastoreSelection(
+                kind="mdp", config_path="dummy"
+            )
+        }
+    )
+
+    # 1. Plain dictionary
+    dict_args = {"graph": "dummy_graph", "hidden_dim": 128}
+    inst_dict = DummyPredictor.from_config(dict_args, config, datastore)
+    assert inst_dict.kwargs["graph_name"] == "dummy_graph"
+    assert inst_dict.kwargs["hidden_dim"] == 128
+
+    # 2. Namespace
+    ns_args = Namespace(graph="dummy_graph", hidden_dim=128)
+    inst_ns = DummyPredictor.from_config(ns_args, config, datastore)
+    assert inst_ns.kwargs["graph_name"] == "dummy_graph"
+    assert inst_ns.kwargs["hidden_dim"] == 128
+
+
+def test_graph_efm_from_config_with_dict_and_namespace():
+    """
+    BaseGraphEFM.from_config accepts plain dict configs as well as Namespace.
+    """
+    # First-party
+    from neural_lam.models.step_predictors.graph.graph_efm import BaseGraphEFM
+
+    class DummyEFM(BaseGraphEFM):
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+        def forward(self, prev_state, prev_prev_state, forcing):
+            return prev_state, None
+
+    datastore = DummyDatastore()
+    config = nlconfig.NeuralLAMConfig(
+        datastores={
+            "interior": nlconfig.DatastoreSelection(
+                kind="mdp", config_path="dummy"
+            )
+        }
+    )
+
+    # 1. Plain dictionary
+    dict_args = {
+        "graph": "hierarchical",
+        "hidden_dim": 64,
+        "m2g_gnn_type": "PropagationNet",
+    }
+    inst_dict = DummyEFM.from_config(dict_args, config, datastore)
+    assert inst_dict.kwargs["graph_name"] == "hierarchical"
+    assert inst_dict.kwargs["hidden_dim"] == 64
+    assert inst_dict.kwargs["m2g_gnn_type"] == "PropagationNet"
+
+    # 2. Namespace
+    ns_args = Namespace(
+        graph="hierarchical",
+        hidden_dim=64,
+        m2g_gnn_type="PropagationNet",
+    )
+    inst_ns = DummyEFM.from_config(ns_args, config, datastore)
+    assert inst_ns.kwargs["graph_name"] == "hierarchical"
+    assert inst_ns.kwargs["hidden_dim"] == 64
+    assert inst_ns.kwargs["m2g_gnn_type"] == "PropagationNet"
+
+
 def test_graphefm_registered_in_models():
     """GraphEFM and GraphEFMMultiScale must be registered in MODELS."""
     # First-party

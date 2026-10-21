@@ -87,7 +87,7 @@ class Run:
 
 def build_predictor(
     predictor_class: Any,
-    args: Namespace,
+    args: Namespace | dict[str, Any],
     config: NeuralLAMConfig,
     datastore: BaseDatastore,
 ) -> Any:
