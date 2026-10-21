@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Decouple `from_config`, `build_predictor`, `ForecasterModule`, and `load_forecaster_module_from_checkpoint` from `argparse.Namespace` to accept plain dictionary configurations, enabling self-contained checkpoints and programmatic instantiation [\#790](https://github.com/mllam/neural-lam/issues/790)
+
 - Add `register_model` and `register_datastore` decorators, introduce a `from_config` classmethod on `StepPredictor` to decouple model construction in `build_predictor`, and register `GraphEFM` and `GraphEFMMultiScale` in `MODELS` [\#791](https://github.com/mllam/neural-lam/issues/791)
 
 - Add the `hello_world_danra.py` marimo tutorial (prepare the DANRA example data, build a graph, train and evaluate `graph_lam` on CPU, all through `neural_lam.api`), executed at docs build time so the docs page shows its outputs; `train_model` now exits non-zero on errors (`@logger.catch(reraise=True)`) [\#577](https://github.com/mllam/neural-lam/pull/577) @Sharkyii
