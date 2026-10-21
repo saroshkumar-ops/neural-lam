@@ -602,6 +602,47 @@ def test_graph_efm_from_config_with_dict_and_namespace():
     assert inst_ns.kwargs["m2g_gnn_type"] == "PropagationNet"
 
 
+def test_forecaster_module_unpacks_dict_args():
+    """
+    ForecasterModule unpacks explicit hyperparameters when passed in a dict.
+    """
+    datastore = DummyDatastore()
+    config = nlconfig.NeuralLAMConfig(
+        datastores={
+            "interior": nlconfig.DatastoreSelection(
+                kind="mdp", config_path="dummy"
+            )
+        }
+    )
+    predictor = MockStepPredictor(datastore=datastore)
+    forecaster = ARForecaster(predictor, datastore=datastore)
+
+    dict_args = {
+        "loss": "mae",
+        "lr": 0.042,
+        "n_example_pred": 5,
+        "create_gif": True,
+        "val_steps_to_log": [3],
+        "train_steps_to_log": [2],
+        "metrics_watch": ["rmse"],
+        "var_leads_metrics_watch": {0: [1]},
+    }
+    module = ForecasterModule(
+        forecaster=forecaster,
+        config=config,
+        datastore=datastore,
+        args=dict_args,
+    )
+    assert module.hparams.loss == "mae"
+    assert module.hparams.lr == 0.042
+    assert module.hparams.n_example_pred == 5
+    assert module.create_gif is True
+    assert module.hparams.val_steps_to_log == [3]
+    assert module.hparams.train_steps_to_log == [2]
+    assert module.hparams.metrics_watch == ["rmse"]
+    assert module.hparams.var_leads_metrics_watch == {0: [1]}
+
+
 def test_graphefm_registered_in_models():
     """GraphEFM and GraphEFMMultiScale must be registered in MODELS."""
     # First-party

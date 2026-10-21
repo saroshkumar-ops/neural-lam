@@ -99,37 +99,40 @@ class ForecasterModule(pl.LightningModule):
         var_leads_metrics_watch : dict of {int: list of int}, optional
             Mapping from variable index to a list of rollout steps to log
             individually for the configured metrics.
-        args : argparse.Namespace, optional
-            Pre-refactor ``ARModel`` checkpoint hyperparameters. When
-            provided, attributes on ``args`` take precedence over the
-            corresponding explicit kwargs (``loss``, ``lr``, ``restore_opt``,
-            ``n_example_pred``, ``create_gif``, ``val_steps_to_log``,
-            ``metrics_watch``, ``var_leads_metrics_watch``) so legacy
-            checkpoints round-trip through ``load_from_checkpoint``
-            correctly.
+        args : argparse.Namespace or dict, optional
+            Pre-refactor ``ARModel`` checkpoint hyperparameters or configuration
+            mapping. When provided, attributes or keys on ``args`` take
+            precedence over the corresponding explicit kwargs (``loss``,
+            ``lr``, ``restore_opt``, ``n_example_pred``, ``create_gif``,
+            ``val_steps_to_log``, ``metrics_watch``,
+            ``var_leads_metrics_watch``) so checkpoints and configs
+            round-trip through ``load_from_checkpoint`` correctly.
         """
         super().__init__()
         # Pre-refactor ``ARModel`` checkpoints saved every hyperparameter nested
         # inside an argparse Namespace under the single key 'args'. When
         # Lightning calls __init__ during load_from_checkpoint it would
         # otherwise drop 'args' (not in the new signature) and silently fall
-        # back to defaults for loss/lr/create_gif/etc. Unpack the namespace
-        # here so legacy checkpoints round-trip correctly.
+        # back to defaults for loss/lr/create_gif/etc. Unpack the namespace or
+        # dictionary here so checkpoints and configs round-trip correctly.
         if args is not None:
-            loss = getattr(args, "loss", loss)
-            lr = getattr(args, "lr", lr)
-            restore_opt = getattr(args, "restore_opt", restore_opt)
-            n_example_pred = getattr(args, "n_example_pred", n_example_pred)
-            create_gif = getattr(args, "create_gif", create_gif)
-            val_steps_to_log = getattr(
-                args, "val_steps_to_log", val_steps_to_log
+            cfg: dict[str, Any] = (
+                args
+                if isinstance(args, dict)
+                else (vars(args) if hasattr(args, "__dict__") else {})
             )
-            train_steps_to_log = getattr(
-                args, "train_steps_to_log", train_steps_to_log
+            loss = cfg.get("loss", loss)
+            lr = cfg.get("lr", lr)
+            restore_opt = cfg.get("restore_opt", restore_opt)
+            n_example_pred = cfg.get("n_example_pred", n_example_pred)
+            create_gif = cfg.get("create_gif", create_gif)
+            val_steps_to_log = cfg.get("val_steps_to_log", val_steps_to_log)
+            train_steps_to_log = cfg.get(
+                "train_steps_to_log", train_steps_to_log
             )
-            metrics_watch = getattr(args, "metrics_watch", metrics_watch)
-            var_leads_metrics_watch = getattr(
-                args, "var_leads_metrics_watch", var_leads_metrics_watch
+            metrics_watch = cfg.get("metrics_watch", metrics_watch)
+            var_leads_metrics_watch = cfg.get(
+                "var_leads_metrics_watch", var_leads_metrics_watch
             )
 
         # Resolve mutable defaults

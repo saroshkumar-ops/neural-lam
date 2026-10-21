@@ -259,6 +259,41 @@ def test_checkpoint_loader_restores_gnn_type_kwargs(config):
     assert captured_kwargs["mesh_down_gnn_type"] == "InteractionNet"
 
 
+def test_checkpoint_loader_restores_from_dict_args(config):
+    """Checkpoint reload must work when saved args is a plain dictionary."""
+    dict_args = {
+        "model": "hi_lam",
+        "g2m_gnn_type": "PropagationNet",
+        "m2g_gnn_type": "PropagationNet",
+        "mesh_up_gnn_type": "PropagationNet",
+        "mesh_down_gnn_type": "InteractionNet",
+    }
+    predictor_class, captured_kwargs = capturing_predictor(BaseHiGraphModel)
+    loaded_module = MagicMock()
+
+    with (
+        patch(
+            "neural_lam.train_model.torch.load",
+            return_value={"hyper_parameters": {"args": dict_args}},
+        ),
+        patch("neural_lam.train_model.MODELS", {"hi_lam": predictor_class}),
+        patch("neural_lam.train_model.ARForecaster"),
+        patch(
+            "neural_lam.train_model.ForecasterModule.load_from_checkpoint",
+            return_value=loaded_module,
+        ),
+    ):
+        result = load_forecaster_module_from_checkpoint(
+            "model.ckpt", config, MagicMock()
+        )
+
+    assert result is loaded_module
+    assert captured_kwargs["g2m_gnn_type"] == "PropagationNet"
+    assert captured_kwargs["m2g_gnn_type"] == "PropagationNet"
+    assert captured_kwargs["mesh_up_gnn_type"] == "PropagationNet"
+    assert captured_kwargs["mesh_down_gnn_type"] == "InteractionNet"
+
+
 def test_build_predictor_omits_hierarchical_gnn_kwargs_for_graph_lam(config):
     """GraphLAM must not receive hierarchical-only GNN constructor kwargs."""
     args = make_args(
