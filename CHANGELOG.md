@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Decouple rom_config, uild_predictor, BaseForecastingModule, and load_forecasting_module_from_checkpoint from rgparse.Namespace to accept plain dictionary configurations, enabling self-contained checkpoints and programmatic instantiation [#790](https://github.com/mllam/neural-lam/issues/790)
+
 - Add `register_model` and `register_datastore` decorators, and introduce a `from_config` classmethod on `StepPredictor` to decouple model construction in `build_predictor` [#791](https://github.com/mllam/neural-lam/issues/791)
 
 - Add deterministic and probabilistic forecaster/module interfaces with

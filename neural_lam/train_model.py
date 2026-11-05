@@ -87,7 +87,7 @@ class Run:
 
 def build_predictor(
     predictor_class: Any,
-    args: Namespace,
+    args: Namespace | dict[str, Any],
     config: NeuralLAMConfig,
     datastore: BaseDatastore,
 ) -> Any:
@@ -150,10 +150,25 @@ def load_forecasting_module_from_checkpoint(
     """
     ckpt = torch.load(ckpt_path, weights_only=False)
     args = ckpt["hyper_parameters"]["args"]
-    predictor_class = MODELS[args.model]
+    model_name: str | None = (
+        args.get("model")
+        if isinstance(args, dict)
+        else getattr(args, "model", None)
+    )
+    if model_name is None or model_name not in MODELS:
+        raise ValueError(
+            "Checkpoint hyper_parameters missing a valid 'model' entry: "
+            f"{model_name}"
+        )
+    predictor_class = MODELS[model_name]
     predictor = build_predictor(predictor_class, args, config, datastore)
+    loss = (
+        args.get("loss", "mse")
+        if isinstance(args, dict)
+        else getattr(args, "loss", "mse")
+    )
     forecaster = DeterministicARForecaster(
-        predictor, datastore, config=config, loss=args.loss
+        predictor, datastore, config=config, loss=loss
     )
     return DeterministicForecastingModule.load_from_checkpoint(
         ckpt_path,

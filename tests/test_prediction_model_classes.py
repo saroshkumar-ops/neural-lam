@@ -819,3 +819,126 @@ def test_registered_model_train_and_val_step(model_name):
 
     # Validation step (evaluation case for all models)
     module.validation_step(batch, batch_idx=0)
+
+
+def test_step_predictor_from_config_with_dict_and_namespace():
+    """
+    StepPredictor.from_config accepts plain dict configs as well as Namespace.
+    """
+
+    class DummyPredictor(StepPredictor):
+        def __init__(self, **kwargs):
+            super().__init__(datastore=kwargs["datastore"])
+            self.kwargs = kwargs
+
+        def forward(self, prev_state, prev_prev_state, forcing):
+            return prev_state, None
+
+    datastore = DummyDatastore()
+    config = nlconfig.NeuralLAMConfig(
+        datastores={
+            "interior": nlconfig.DatastoreSelection(
+                kind="mdp", config_path="dummy"
+            )
+        }
+    )
+
+    # 1. Plain dictionary
+    dict_args = {"graph": "dummy_graph", "hidden_dim": 128}
+    inst_dict = DummyPredictor.from_config(dict_args, config, datastore)
+    assert inst_dict.kwargs["graph_name"] == "dummy_graph"
+    assert inst_dict.kwargs["hidden_dim"] == 128
+
+    # 2. Namespace
+    ns_args = Namespace(graph="dummy_graph", hidden_dim=128)
+    inst_ns = DummyPredictor.from_config(ns_args, config, datastore)
+    assert inst_ns.kwargs["graph_name"] == "dummy_graph"
+    assert inst_ns.kwargs["hidden_dim"] == 128
+
+
+def test_graph_efm_from_config_with_dict_and_namespace():
+    """
+    BaseGraphEFM.from_config accepts plain dict configs as well as Namespace.
+    """
+    # First-party
+    from neural_lam.models.step_predictors.graph.graph_efm import BaseGraphEFM
+
+    class DummyEFM(BaseGraphEFM):
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+        def forward(self, prev_state, prev_prev_state, forcing):
+            return prev_state, None
+
+    datastore = DummyDatastore()
+    config = nlconfig.NeuralLAMConfig(
+        datastores={
+            "interior": nlconfig.DatastoreSelection(
+                kind="mdp", config_path="dummy"
+            )
+        }
+    )
+
+    # 1. Plain dictionary
+    dict_args = {
+        "graph": "hierarchical",
+        "hidden_dim": 64,
+        "m2g_gnn_type": "PropagationNet",
+    }
+    inst_dict = DummyEFM.from_config(dict_args, config, datastore)
+    assert inst_dict.kwargs["graph_name"] == "hierarchical"
+    assert inst_dict.kwargs["hidden_dim"] == 64
+    assert inst_dict.kwargs["m2g_gnn_type"] == "PropagationNet"
+
+    # 2. Namespace
+    ns_args = Namespace(
+        graph="hierarchical",
+        hidden_dim=64,
+        m2g_gnn_type="PropagationNet",
+    )
+    inst_ns = DummyEFM.from_config(ns_args, config, datastore)
+    assert inst_ns.kwargs["graph_name"] == "hierarchical"
+    assert inst_ns.kwargs["hidden_dim"] == 64
+    assert inst_ns.kwargs["m2g_gnn_type"] == "PropagationNet"
+
+
+def test_forecasting_module_unpacks_dict_args():
+    """
+    DeterministicForecastingModule unpacks explicit hyperparameters when
+    passed in a dict.
+    """
+    datastore = DummyDatastore()
+    config = nlconfig.NeuralLAMConfig(
+        datastores={
+            "interior": nlconfig.DatastoreSelection(
+                kind="mdp", config_path="dummy"
+            )
+        }
+    )
+    predictor = MockStepPredictor(datastore=datastore)
+    forecaster = DeterministicARForecaster(
+        predictor, datastore=datastore, config=config, loss="mse"
+    )
+
+    dict_args = {
+        "lr": 0.042,
+        "n_example_pred": 5,
+        "create_gif": True,
+        "val_steps_to_log": [3],
+        "train_steps_to_log": [2],
+        "metrics_watch": ["rmse"],
+        "var_leads_metrics_watch": {0: [1]},
+    }
+    module = DeterministicForecastingModule(
+        forecaster=forecaster,
+        config=config,
+        datastore=datastore,
+        args=dict_args,
+    )
+    assert module.hparams.lr == 0.042
+    assert module.hparams.n_example_pred == 5
+    assert module.create_gif is True
+    assert module.hparams.val_steps_to_log == [3]
+    assert module.hparams.train_steps_to_log == [2]
+    assert module.hparams.metrics_watch == ["rmse"]
+    assert module.hparams.var_leads_metrics_watch == {0: [1]}
